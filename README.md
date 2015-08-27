@@ -1,0 +1,7 @@
+# Isometric Engine
+
+This is a small isometric game engine written in C++ using the Allegrto game library that I've been experimenting with in my free time for fun. The interesting feature is the isometric tile map with tiles of variable height, similar to old isometric sim games like transport tycoon, sim city, and roller coaster tycoon.
+
+The representation of a number of different tile elevations and images has proven to be an fun challenge. Particularly the algorithms for flattening large areas of tiles and determining which tile the mouse is over with regard to elevation.
+
+The most interesting code is located in Terrain.cpp/Terrain.h
