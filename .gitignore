@@ -1,0 +1,12 @@
+.hg*
+Debug/*
+Release/*
+IsometricEngine.psess
+IsometricEngine/Debug/*
+IsometricEngine/Release/*
+IsometricEngine/allegro.log
+IsometricEngine/images/mine/*
+IsometricEngine/images/ogfx1_base/*
+IsometricEngine/images/tree/*
+IsometricEngine/images/tree2/*
+IsometricEngine/images/tree3/*
