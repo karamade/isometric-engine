@@ -71,29 +71,29 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Building.cpp" />
-    <ClCompile Include="BuildingManager.cpp" />
-    <ClCompile Include="Game.cpp" />
-    <ClCompile Include="GameGui.cpp" />
-    <ClCompile Include="InputHandler.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="Pathway.cpp" />
-    <ClCompile Include="Roadway.cpp" />
-    <ClCompile Include="Terrain.cpp" />
+    <ClCompile Include="src\Building.cpp" />
+    <ClCompile Include="src\BuildingManager.cpp" />
+    <ClCompile Include="src\Game.cpp" />
+    <ClCompile Include="src\GameGui.cpp" />
+    <ClCompile Include="src\InputHandler.cpp" />
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\Pathway.cpp" />
+    <ClCompile Include="src\Roadway.cpp" />
+    <ClCompile Include="src\Terrain.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Building.h" />
-    <ClInclude Include="BuildingManager.h" />
-    <ClInclude Include="CommandButton.h" />
-    <ClInclude Include="Game.h" />
-    <ClInclude Include="GameGui.h" />
-    <ClInclude Include="GameState.h" />
-    <ClInclude Include="InputHandler.h" />
-    <ClInclude Include="MathHelper.h" />
-    <ClInclude Include="Pathway.h" />
-    <ClInclude Include="Resources.h" />
-    <ClInclude Include="Roadway.h" />
-    <ClInclude Include="Terrain.h" />
+    <ClInclude Include="src\Building.h" />
+    <ClInclude Include="src\BuildingManager.h" />
+    <ClInclude Include="src\CommandButton.h" />
+    <ClInclude Include="src\Game.h" />
+    <ClInclude Include="src\GameGui.h" />
+    <ClInclude Include="src\GameState.h" />
+    <ClInclude Include="src\InputHandler.h" />
+    <ClInclude Include="src\MathHelper.h" />
+    <ClInclude Include="src\Pathway.h" />
+    <ClInclude Include="src\Resources.h" />
+    <ClInclude Include="src\Roadway.h" />
+    <ClInclude Include="src\Terrain.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
