@@ -88,7 +88,7 @@ Point Terrain::FineWorldToTile(const Point world)
 			else
 				side = (tileType >> 4) & 3;
 
-			unsigned char min = Min(top, side);
+			unsigned char min = std::min(top, side);
 			elevation += min;
 			top -= min;
 			side -= min;
@@ -305,7 +305,7 @@ void Terrain::LoadMapFromHeightmap(ALLEGRO_BITMAP *heightMap)
 	al_unlock_bitmap(heightMap);
 
 	// clamp values to ensure adjacent points do not experience an elevation change of more than 3 units
-	int min;
+	unsigned char min;
 	bool flag;
 	do
 	{
@@ -316,13 +316,13 @@ void Terrain::LoadMapFromHeightmap(ALLEGRO_BITMAP *heightMap)
 			for(int x = 1; x < m_pmw - 1; x++)
 			{
 				min = pointMap[(y-1) * m_pmw + x];               // up
-				min = Min(pointMap[(y-1) * m_pmw + (x+1)], min); // up-right
-				min = Min(pointMap[(y  ) * m_pmw + (x+1)], min); // right
-				min = Min(pointMap[(y+1) * m_pmw + (x+1)], min); // down-right
-				min = Min(pointMap[(y+1) * m_pmw + (x  )], min); // down
-				min = Min(pointMap[(y+1) * m_pmw + (x-1)], min); // down-left
-				min = Min(pointMap[(y  ) * m_pmw + (x-1)], min); // left
-				min = Min(pointMap[(y-1) * m_pmw + (x-1)], min); // up-left
+				min = std::min(pointMap[(y-1) * m_pmw + (x+1)], min); // up-right
+				min = std::min(pointMap[(y  ) * m_pmw + (x+1)], min); // right
+				min = std::min(pointMap[(y+1) * m_pmw + (x+1)], min); // down-right
+				min = std::min(pointMap[(y+1) * m_pmw + (x  )], min); // down
+				min = std::min(pointMap[(y+1) * m_pmw + (x-1)], min); // down-left
+				min = std::min(pointMap[(y  ) * m_pmw + (x-1)], min); // left
+				min = std::min(pointMap[(y-1) * m_pmw + (x-1)], min); // up-left
 
 				if(pointMap[y * m_pmw + x] > (min + 3))
 				{
@@ -364,7 +364,7 @@ void Terrain::GenerateTilesFromPoints()
 			e = m_map[(y  ) * m_pmw + (x+1)].NorthPoint;
 			w = m_map[(y+1) * m_pmw + (x  )].NorthPoint;
 			s = m_map[(y+1) * m_pmw + (x+1)].NorthPoint;
-			min = Min(Min(n, s), Min(e, w));
+			min = std::min(std::min(n, s), std::min(e, w));
 			n -= min;
 			s -= min;
 			e -= min;

@@ -1,4 +1,7 @@
 #pragma once
+#undef min
+#undef max
+#include <algorithm>
 
 static inline int Clamp(int value, int min, int max)
 {
@@ -8,16 +11,6 @@ static inline int Clamp(int value, int min, int max)
 static inline int ClampPositive(int value)
 {
 	return value < 0 ? 0 : value;
-}
-
-static inline int Min(int x1, int x2)
-{
-	return x1 < x2 ? x1 : x2;
-}
-
-static inline int Max(int x1, int x2)
-{
-	return x1 > x2 ? x1 : x2;
 }
 
 static inline int DistanceSquared(int x1, int y1, int x2, int y2)
@@ -99,8 +92,8 @@ struct Rect
 	Rect(const int left, const int top, const int right, const int bot) : left(left), top(top), right(right), bot(bot) {}
 	Rect(const Point topLeft, const Point botRight) : left(topLeft.x), top(topLeft.y), right(botRight.x), bot(botRight.y) {}
 
-	static Rect FromPoints(const Point a, const Point b) { return Rect(Min(a.x, b.x), Min(a.y, b.y), Max(a.x, b.x), Max(a.y, b.y)); };
-	static Rect Bounding(const Point a, const Point b) { return Rect(Min(a.x, b.x), Min(a.y, b.y), Max(a.x, b.x) + 1, Max(a.y, b.y) + 1); }
+	static Rect FromPoints(const Point a, const Point b) { return Rect(std::min(a.x, b.x), std::min(a.y, b.y), std::max(a.x, b.x), std::max(a.y, b.y)); };
+	static Rect Bounding(const Point a, const Point b) { return Rect(std::min(a.x, b.x), std::min(a.y, b.y), std::max(a.x, b.x) + 1, std::max(a.y, b.y) + 1); }
 
 	int Width() const { return right - left; };
 	int Height() const { return bot - top; };
