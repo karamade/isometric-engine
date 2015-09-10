@@ -70,6 +70,10 @@ private:
 	bool m_keys[6];
 
 	InputState m_iState;
+	/*
+	Tracks what building to build after a building button has been pressed
+	Perhaps using a proper command pattern would be better
+	*/
 	BuildingTemplate* m_buildingCmd;
 };
 

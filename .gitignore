@@ -3,6 +3,7 @@ Debug/*
 Release/*
 IsometricEngine.psess
 IsometricEngine.sdf
+IsometricEngine.opensdf
 IsometricEngine/Debug/*
 IsometricEngine/Release/*
 IsometricEngine/allegro.log

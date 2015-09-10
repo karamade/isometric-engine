@@ -76,23 +76,29 @@ void Game::Run(void)
 {
 	m_view = Point(2000, 2000);
 
-	while(1) // game loop
-	{
-		ALLEGRO_EVENT ev;
-		ALLEGRO_TIMEOUT timeout;
-		al_init_timeout(&timeout, 0.01);
+	ALLEGRO_EVENT ev;
+	ALLEGRO_TIMEOUT timeout;
+	al_init_timeout(&timeout, 0.01);
 
+	std::stringstream ss;
+	ALLEGRO_COLOR white = al_map_rgb(255, 255, 255);
+
+	while(true) // game loop
+	{
+		// user input or redraw timer event
 		bool getEvent = al_wait_for_event_until(m_eventQueue, &ev, &timeout);
 
+		// game closed
 		if(getEvent && ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE)
 			break;
 		
-		if(getEvent)
-			m_gui.HandleEvent(ev, m_state, m_view);
-
-		// timer requests redraw
+		// timer event requesting frame redraw
 		if(getEvent && ev.type == ALLEGRO_EVENT_TIMER)
 			m_redraw = true;
+
+		// handle user input
+		if(getEvent)
+			m_gui.HandleEvent(ev, m_state, m_view);
 
 		// preform redraw only if event queue is empty
 		// aka consume all user input events before wasting all our CPU time
@@ -111,24 +117,31 @@ void Game::Run(void)
 			// find what tile the mouse is over for debugging
 			Point mouse_pt = m_state.GetTerrain().FineWorldToTile(m_iHandler.GetMouse() + m_view);
 
-			std::stringstream ss;
-
 			// show fps
+			ss.str("");
+			ss.clear();
 			ss << m_fps;
-			al_draw_text(m_font, al_map_rgb(255, 255, 255), 10, 0, 0, ss.str().c_str());
+			auto fps_text = ss.str();
 
 			ss.str("");
+			ss.clear();
 			ss << mouse_pt.x << ", " << mouse_pt.y << ", "
 				// display tile map coords of the tile the mouse is over, helps debugging
 				<< (int)m_state.GetTerrain().GetTile(mouse_pt).TileType % 16 << ", "
 				<< (int)m_state.GetTerrain().GetTile(mouse_pt).TileType / 16;
-			al_draw_text(m_font, al_map_rgb(255, 255, 255), 10, 12, 0, ss.str().c_str());
+			auto mouse_tile_coords = ss.str();
 
 			mouse_pt = m_iHandler.GetMouse() + m_view;
 			ss.str("");
+			ss.clear();
 			// mouse pixel coords
 			ss << mouse_pt.x << ", " << mouse_pt.y;
-			al_draw_text(m_font, al_map_rgb(255, 255, 255), 10, 24, 0, ss.str().c_str());
+			auto mouse_pixel_coords = ss.str();
+
+			// actually draw the debugging text
+			al_draw_text(m_font, white, 10, 0, 0, fps_text.c_str());
+			al_draw_text(m_font, white, 10, 12, 0, mouse_tile_coords.c_str());
+			al_draw_text(m_font, white, 10, 24, 0, mouse_pixel_coords.c_str());
 
 			// draw the rest of the frame and display
 			m_gui.Render();

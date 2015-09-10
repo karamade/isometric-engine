@@ -39,6 +39,7 @@ public:
 	
 private:
 	GameState m_state;
+	// InputHandler could be combined with GameGui probably
 	InputHandler m_iHandler;
 	GameGui m_gui;
 
