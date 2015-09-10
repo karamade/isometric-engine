@@ -7,18 +7,20 @@ Terrain::Terrain()
 
 Terrain::~Terrain(void)
 {
-	al_destroy_bitmap(tileMap);
+	al_destroy_bitmap(m_tileMap);
 }
 
 void Terrain::AllegroInit()
 {
-	tileMap = al_load_bitmap("images/tiles2.png");
-	if(!tileMap)
+	// load tile images
+	m_tileMap = al_load_bitmap("images/tiles2.png");
+	if(!m_tileMap)
 		throw std::runtime_error("can't load tilemap");
 
+	// split tile images into individual tiles
 	for (int tt = 0; tt < 256; tt++)
 	{
-		tileBitmaps.push_back(al_create_sub_bitmap(tileMap, TILE_X * (tt % 16), TILE_Y * (tt / 16), TILE_X, TILE_Y));
+		m_tileBitmaps.push_back(al_create_sub_bitmap(m_tileMap, TILE_X * (tt % 16), TILE_Y * (tt / 16), TILE_X, TILE_Y));
 	}
 
 	ALLEGRO_BITMAP *hm = al_load_bitmap("images/200px-Heightmap.png");
@@ -36,10 +38,10 @@ Point Terrain::FineWorldToTile(const Point world)
 
 	while (true)
 	{
-		if (tile.x >= width || tile.y >= height)
+		if (tile.x >= m_width || tile.y >= m_height)
 		{
-			tile.x = Clamp(tile.x, 0, width - 1);
-			tile.y = Clamp(tile.y, 0, height - 1);
+			tile.x = Clamp(tile.x, 0, m_width - 1);
+			tile.y = Clamp(tile.y, 0, m_height - 1);
 			return tile;
 		}
 
@@ -64,6 +66,12 @@ Point Terrain::FineWorldToTile(const Point world)
 		unsigned char elevation;
 		if (tile.x < 0 || tile.y < 0)
 		{
+			// the rough tile is outside the bounds of the map.
+			// we want to mimic the slope that is parallel to the edge of the
+			// map of each tile for each fake tile outside the the bounds of the map.
+			// we can then proceed to tile walk over those fake tiles until we
+			// either get back inside the map or we match a tile outside
+			// the map, which means the cursor is pointed outside the map.
 			tileType = GetTile(clamped).TileType;
 			elevation = GetTile(clamped).Elevation;
 
@@ -85,6 +93,8 @@ Point Terrain::FineWorldToTile(const Point world)
 			top -= min;
 			side -= min;
 
+			// clamp side based on if the tile is on the north-west or
+			// north-east side
 			if (tile.x < tile.y)
 				tileType = (top << 6) | (top << 4) | (side << 2) | side;
 			else
@@ -198,7 +208,7 @@ Point Terrain::FineWorldToPoint(const Point world)
 	Point point = FineWorldToTile(world);
 
 	// we are outside the bounds of the map
-	if(point.x < 0 || point.x >= width || point.y < 0 || point.y >= height)
+	if(point.x < 0 || point.x >= m_width || point.y < 0 || point.y >= m_height)
 		return Point(-1, -1);
 
 	Point top = FinePointToWorld(point);
@@ -216,8 +226,13 @@ Point Terrain::FineWorldToPoint(const Point world)
 
 void Terrain::DrawViewport(const Rect viewWorld, bool drawSelected)
 {
-	Rect viewTile = Rect(RoughWorldToTileX(viewWorld.TopLeft()), RoughWorldToTileY(viewWorld.TopRight()), FineWorldToTile(viewWorld.BotRight()).x, FineWorldToTile(viewWorld.BotLeft()).y);
-	viewTile.Clamp(0, 0, width, height);
+	Rect viewTile = Rect(
+		RoughWorldToTileX(viewWorld.TopLeft()),
+		RoughWorldToTileY(viewWorld.TopRight()),
+		FineWorldToTile(viewWorld.BotRight()).x,
+		FineWorldToTile(viewWorld.BotLeft()).y);
+
+	viewTile.Clamp(0, 0, m_width, m_height);
 
 	al_hold_bitmap_drawing(true);
 	for(int y = viewTile.top; y <= viewTile.bot; y++)
@@ -228,10 +243,10 @@ void Terrain::DrawViewport(const Rect viewWorld, bool drawSelected)
 
 			int tt = GetTile(Point(x, y)).TileType;
 
-			if (selection.PointInside(Point(x, y)) && drawSelected)
-				al_draw_tinted_bitmap(tileBitmaps[tt], al_map_rgba_f(1, 1, 1, .5), fine.x, fine.y, 0);
+			if (m_selection.PointInside(Point(x, y)) && drawSelected)
+				al_draw_tinted_bitmap(m_tileBitmaps[tt], al_map_rgba_f(1, 1, 1, .5), fine.x, fine.y, 0);
 			else
-				al_draw_bitmap(tileBitmaps[tt], fine.x, fine.y, 0);
+				al_draw_bitmap(m_tileBitmaps[tt], fine.x, fine.y, 0);
 		}
 	}
 	al_hold_bitmap_drawing(false);
@@ -240,7 +255,7 @@ void Terrain::DrawViewport(const Rect viewWorld, bool drawSelected)
 	// draw the point the mouse is currently over
 	if(!drawSelected)
 	{
-		Point fine = FinePointToWorld(selection.TopLeft()) - viewWorld.TopLeft();
+		Point fine = FinePointToWorld(m_selection.TopLeft()) - viewWorld.TopLeft();
 		al_draw_filled_circle(fine.x, fine.y, 2, al_map_rgb(255, 255, 255));
 	}
 
@@ -259,7 +274,7 @@ void Terrain::DrawViewport(const Rect viewWorld, bool drawSelected)
 				Rect footprint = Rect(xy, xy + Point(w, h));
 
 				// is the building selected?
-				if(footprint.PointInside(selection.TopLeft()))
+				if(footprint.PointInside(m_selection.TopLeft()))
 					al_draw_tinted_bitmap(building->GetTexture(), al_map_rgba_f(1, 0, .5, .5), fine.x - h * 32 + 32, fine.y + 32, 0);
 				else
 					al_draw_bitmap(building->GetTexture(), fine.x - h * 32 + 32, fine.y + 32, 0);
@@ -272,16 +287,16 @@ void Terrain::LoadMapFromHeightmap(ALLEGRO_BITMAP *heightMap)
 {
 	std::vector<unsigned char> pointMap;
 
-	pmw = al_get_bitmap_width(heightMap);
-	pmh = al_get_bitmap_height(heightMap);
+	m_pmw = al_get_bitmap_width(heightMap);
+	m_pmh = al_get_bitmap_height(heightMap);
 
 	ALLEGRO_LOCKED_REGION *region = al_lock_bitmap(heightMap, ALLEGRO_PIXEL_FORMAT_ANY, 0);
 
 	// read colors into the corner elevation map
 	ALLEGRO_COLOR color;
-	for(int y = 0; y < pmh; y++)
+	for(int y = 0; y < m_pmh; y++)
 	{
-		for(int x = 0; x < pmw; x++)
+		for(int x = 0; x < m_pmw; x++)
 		{
 			color = al_get_pixel(heightMap, x, y);
 			pointMap.push_back((int)(color.r * 255));
@@ -296,41 +311,41 @@ void Terrain::LoadMapFromHeightmap(ALLEGRO_BITMAP *heightMap)
 	{
 		flag = false;
 		
-		for(int y = 1; y < pmh - 1; y++)
+		for(int y = 1; y < m_pmh - 1; y++)
 		{
-			for(int x = 1; x < pmw - 1; x++)
+			for(int x = 1; x < m_pmw - 1; x++)
 			{
-				min = pointMap[(y-1) * pmw + x];               // up
-				min = Min(pointMap[(y-1) * pmw + (x+1)], min); // up-right
-				min = Min(pointMap[(y  ) * pmw + (x+1)], min); // right
-				min = Min(pointMap[(y+1) * pmw + (x+1)], min); // down-right
-				min = Min(pointMap[(y+1) * pmw + (x  )], min); // down
-				min = Min(pointMap[(y+1) * pmw + (x-1)], min); // down-left
-				min = Min(pointMap[(y  ) * pmw + (x-1)], min); // left
-				min = Min(pointMap[(y-1) * pmw + (x-1)], min); // up-left
+				min = pointMap[(y-1) * m_pmw + x];               // up
+				min = Min(pointMap[(y-1) * m_pmw + (x+1)], min); // up-right
+				min = Min(pointMap[(y  ) * m_pmw + (x+1)], min); // right
+				min = Min(pointMap[(y+1) * m_pmw + (x+1)], min); // down-right
+				min = Min(pointMap[(y+1) * m_pmw + (x  )], min); // down
+				min = Min(pointMap[(y+1) * m_pmw + (x-1)], min); // down-left
+				min = Min(pointMap[(y  ) * m_pmw + (x-1)], min); // left
+				min = Min(pointMap[(y-1) * m_pmw + (x-1)], min); // up-left
 
-				if(pointMap[y * pmw + x] > (min + 3))
+				if(pointMap[y * m_pmw + x] > (min + 3))
 				{
 					flag = true;
-					pointMap[y * pmw + x] = min + 3;
+					pointMap[y * m_pmw + x] = min + 3;
 				}
 			}
 		}
 	} while(flag);
 
 	// initalize the map
-	map.clear();
-	for(int y = 1; y < pmh - 1; y++)
-		for(int x = 1; x < pmw - 1; x++)
-			map.push_back(Tile(0, 0, pointMap[y * pmw + x]));
+	m_map.clear();
+	for(int y = 1; y < m_pmh - 1; y++)
+		for(int x = 1; x < m_pmw - 1; x++)
+			m_map.push_back(Tile(0, 0, pointMap[y * m_pmw + x]));
 
 	// these represent the dimensions of the tiles actually used
-	width = pmw - 3;
-	height = pmh - 3;
+	m_width = m_pmw - 3;
+	m_height = m_pmh - 3;
 
 	// these variables become the 'actual' height and width of map
-	pmw = width + 1;
-	pmh = height + 1;
+	m_pmw = m_width + 1;
+	m_pmh = m_height + 1;
 
 	// generate tiletypes given point data
 	GenerateTilesFromPoints();
@@ -341,14 +356,14 @@ void Terrain::GenerateTilesFromPoints()
 	unsigned int mask, n, s, e, w, min;
 
 	// determine tile types
-	for(int y = 0; y < height; y++)
+	for(int y = 0; y < m_height; y++)
 	{
-		for(int x = 0; x < width; x++)
+		for(int x = 0; x < m_width; x++)
 		{
-			n = map[(y  ) * pmw + (x  )].NorthPoint;
-			e = map[(y  ) * pmw + (x+1)].NorthPoint;
-			w = map[(y+1) * pmw + (x  )].NorthPoint;
-			s = map[(y+1) * pmw + (x+1)].NorthPoint;
+			n = m_map[(y  ) * m_pmw + (x  )].NorthPoint;
+			e = m_map[(y  ) * m_pmw + (x+1)].NorthPoint;
+			w = m_map[(y+1) * m_pmw + (x  )].NorthPoint;
+			s = m_map[(y+1) * m_pmw + (x+1)].NorthPoint;
 			min = Min(Min(n, s), Min(e, w));
 			n -= min;
 			s -= min;
@@ -359,8 +374,8 @@ void Terrain::GenerateTilesFromPoints()
 			// NN EE SS WW
 			// 00 00 00 00
 			mask = (n << 6) | (e << 4) | (s << 2) | w;
-			map[y * pmw + x].Elevation = min;
-			map[y * pmw + x].TileType = mask;
+			m_map[y * m_pmw + x].Elevation = min;
+			m_map[y * m_pmw + x].TileType = mask;
 		}
 	}
 }
@@ -404,7 +419,7 @@ bool Terrain::PlaceBuilding(int x, int y, Building& building)
 	return true;
 }
 
-// elevation adjustment queue node
+// elevation adjustment queue node, used to flatten regions
 struct EAQN
 {
 	int x;
@@ -422,7 +437,7 @@ struct EAQN
 // change the elevation of (sx1, sy1) by change
 void Terrain::AdjustSelectedElevation(int change)
 {
-	Flatten(selection, GetTile(selection.TopLeft()).NorthPoint + change);
+	Flatten(m_selection, GetTile(m_selection.TopLeft()).NorthPoint + change);
 }
 
 // flatten a rectangle defined by the corners (x1, y1) and (x2, y2)
@@ -495,11 +510,11 @@ bool Terrain::FlattenDryRun(const Rect region, int targetElevation)
 		for(int x = region.left; x <= region.right; x++)
 			q.push(EAQN(x, region.top - 1, targetElevation));
 	// east
-	if(region.right + 1 < pmw)
+	if(region.right + 1 < m_pmw)
 		for(int y = region.top; y <= region.bot; y++)
 			q.push(EAQN(region.right + 1, y, targetElevation));
 	// south
-	if(region.bot + 1 < pmh)
+	if(region.bot + 1 < m_pmh)
 		for(int x = region.left; x <= region.right; x++)
 			q.push(EAQN(x, region.bot + 1, targetElevation));
 
@@ -516,7 +531,7 @@ bool Terrain::FlattenDryRun(const Rect region, int targetElevation)
 		n = q.front();
 		q.pop();
 
-		if(n.x < 0 || n.y < 0 || n.x >= pmw || n.y >= pmh)
+		if(n.x < 0 || n.y < 0 || n.x >= m_pmw || n.y >= m_pmh)
 			continue;
 
 		if (GetTile(Point(n.x, n.y)).DryRunElevation != -1)
@@ -559,9 +574,9 @@ bool Terrain::FlattenDryRun(const Rect region, int targetElevation)
 
 void Terrain::FinalizeElevationChange()
 {
-	for(int y = 0; y < pmh; y++)
+	for(int y = 0; y < m_pmh; y++)
 	{
-		for(int x = 0; x < pmw; x++)
+		for(int x = 0; x < m_pmw; x++)
 		{
 			if (GetTile(Point(x, y)).DryRunElevation != -1)
 			{
@@ -576,9 +591,9 @@ void Terrain::FinalizeElevationChange()
 
 void Terrain::RevertElevationChange()
 {
-	for(int y = 0; y < pmh; y++)
+	for(int y = 0; y < m_pmh; y++)
 	{
-		for(int x = 0; x < pmw; x++)
+		for(int x = 0; x < m_pmw; x++)
 		{
 			GetTile(Point(x, y)).DryRunElevation = -1;
 		}

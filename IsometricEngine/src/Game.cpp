@@ -1,9 +1,12 @@
 #include "Game.h"
 
-Game::Game(void) : iHandler(), gui(iHandler)
+Game::Game(void)
+	: m_iHandler()
+	, m_gui(m_iHandler)
 {
-	// allegro init
+	// allegro init stuff, kinda annoying
 	if(!al_init())
+		// don't worry about failing nice, just kick up a big fuss for now
 		throw std::runtime_error("can't initialize allegro");
 
 	if(!al_init_image_addon())
@@ -22,109 +25,124 @@ Game::Game(void) : iHandler(), gui(iHandler)
 	if(!al_install_mouse())
 		throw std::runtime_error("can't install mouse");
 
-	display = al_create_display(SCREEN_WIDTH, SCREEN_HEIGHT);
-	if(!display)
+	m_display = al_create_display(SCREEN_WIDTH, SCREEN_HEIGHT);
+	if(!m_display)
 		throw std::runtime_error("can't create display");
 
-	font = al_load_ttf_font("arial.ttf", 12, 0);
-	if(!font)
+	m_font = al_load_ttf_font("arial.ttf", 12, 0);
+	if(!m_font)
 		throw std::runtime_error("can't load 'arial.ttf'");
 
-	eventQueue = al_create_event_queue();
-	if(!eventQueue)
+	m_eventQueue = al_create_event_queue();
+	if(!m_eventQueue)
 		throw std::runtime_error("can't create allegro event queue");
 
-	timer = al_create_timer(1.0 / 60.0);
-	if(!timer)
+	// Redraw timer that fires for every frame
+	m_timer = al_create_timer(1.0 / 60.0);
+	if(!m_timer)
 		throw std::runtime_error("can't create allegro timer");
 
-	al_register_event_source(eventQueue, al_get_display_event_source(display));
-	al_register_event_source(eventQueue, al_get_keyboard_event_source());
-	al_register_event_source(eventQueue, al_get_mouse_event_source());
-	al_register_event_source(eventQueue, al_get_timer_event_source(timer));
+	al_register_event_source(m_eventQueue, al_get_display_event_source(m_display));
+	al_register_event_source(m_eventQueue, al_get_keyboard_event_source());
+	al_register_event_source(m_eventQueue, al_get_mouse_event_source());
+	al_register_event_source(m_eventQueue, al_get_timer_event_source(m_timer));
 
-	al_start_timer(timer);
+	// Other game objects that load allegro resources
+	m_state.GetTerrain().AllegroInit();
+	m_state.GetBuildingManager().LoadBuildingTemplates();
 
-	state.GetTerrain().AllegroInit();
-	state.GetBuildingManager().LoadBuildingTemplates();
+	m_gui.AllegroInit();
+	m_gui.LoadGui(m_state.GetBuildingManager());
 
-	gui.AllegroInit();
-	gui.LoadGui(state.GetBuildingManager());
+	m_view = Point(0, 0);
 
-	view = Point(0, 0);
+	// fps counting
+	m_fps = 0;
+	m_framesDone = 0;
+	m_oldTime = al_get_time();
 
-	fps = 0;
-	framesDone = 0;
-	oldTime = al_get_time();
-
-	al_start_timer(timer);
+	al_start_timer(m_timer);
 }
 
 Game::~Game(void)
 {
-	al_destroy_display(display);
-	al_destroy_event_queue(eventQueue);
-	al_destroy_timer(timer);
+	al_destroy_display(m_display);
+	al_destroy_event_queue(m_eventQueue);
+	al_destroy_timer(m_timer);
+	al_destroy_font(m_font);
 }
 
 void Game::Run(void)
 {
-	view = Point(2000, 2000);
-	while(1)
+	m_view = Point(2000, 2000);
+
+	while(1) // game loop
 	{
 		ALLEGRO_EVENT ev;
 		ALLEGRO_TIMEOUT timeout;
 		al_init_timeout(&timeout, 0.01);
 
-		bool getEvent = al_wait_for_event_until(eventQueue, &ev, &timeout);
+		bool getEvent = al_wait_for_event_until(m_eventQueue, &ev, &timeout);
 
 		if(getEvent && ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE)
 			break;
 		
 		if(getEvent)
-			gui.HandleEvent(ev, state, view);
+			m_gui.HandleEvent(ev, m_state, m_view);
 
+		// timer requests redraw
 		if(getEvent && ev.type == ALLEGRO_EVENT_TIMER)
-			redraw = true;
+			m_redraw = true;
 
-		// redraw
-		if(redraw && al_is_event_queue_empty(eventQueue))
+		// preform redraw only if event queue is empty
+		// aka consume all user input events before wasting all our CPU time
+		// drawing and letting input events stack up in the queue
+		if(m_redraw && al_is_event_queue_empty(m_eventQueue))
 		{
-			view = iHandler.DrawTick(state, view);
+			m_redraw = false;
 
-			redraw = false;
+			m_view = m_iHandler.DrawTick(m_state, m_view);
+
+			// clear background
+			al_clear_to_color(al_map_rgb(255,0,255));
+			// draw terrain
+			m_state.GetTerrain().DrawViewport(Rect(m_view, m_view + Point(SCREEN_WIDTH, SCREEN_HEIGHT)), true);
+
+			// find what tile the mouse is over for debugging
+			Point mouse_pt = m_state.GetTerrain().FineWorldToTile(m_iHandler.GetMouse() + m_view);
 
 			std::stringstream ss;
-			Point mouse_pt = state.GetTerrain().FineWorldToTile(iHandler.GetMouse() + view);
 
-			al_clear_to_color(al_map_rgb(255,0,255));
-			state.GetTerrain().DrawViewport(Rect(view, view + Point(SCREEN_WIDTH, SCREEN_HEIGHT)), true);
-
-			// output
-			ss << mouse_pt.x << ", " << mouse_pt.y << ", " << (int)state.GetTerrain().GetTile(mouse_pt).TileType % 16 << ", " << (int)state.GetTerrain().GetTile(mouse_pt).TileType / 16;
-			al_draw_text(font, al_map_rgb(255, 255, 255), 10, 12, 0, ss.str().c_str());
+			// show fps
+			ss << m_fps;
+			al_draw_text(m_font, al_map_rgb(255, 255, 255), 10, 0, 0, ss.str().c_str());
 
 			ss.str("");
-			ss << fps;
-			al_draw_text(font, al_map_rgb(255, 255, 255), 10, 0, 0, ss.str().c_str());
+			ss << mouse_pt.x << ", " << mouse_pt.y << ", "
+				// display tile map coords of the tile the mouse is over, helps debugging
+				<< (int)m_state.GetTerrain().GetTile(mouse_pt).TileType % 16 << ", "
+				<< (int)m_state.GetTerrain().GetTile(mouse_pt).TileType / 16;
+			al_draw_text(m_font, al_map_rgb(255, 255, 255), 10, 12, 0, ss.str().c_str());
 
-			mouse_pt = iHandler.GetMouse() + view;
+			mouse_pt = m_iHandler.GetMouse() + m_view;
 			ss.str("");
+			// mouse pixel coords
 			ss << mouse_pt.x << ", " << mouse_pt.y;
-			al_draw_text(font, al_map_rgb(255, 255, 255), 10, 24, 0, ss.str().c_str());
+			al_draw_text(m_font, al_map_rgb(255, 255, 255), 10, 24, 0, ss.str().c_str());
 
-			gui.Render();
+			// draw the rest of the frame and display
+			m_gui.Render();
 			al_flip_display();
 
-			// fps stuff
+			// fps upkeep stuff
 			double gameTime = al_get_time();
-			if(gameTime - oldTime >= 1.0)
+			if(gameTime - m_oldTime >= 1.0)
 			{
-				fps = framesDone / (gameTime - oldTime);
-				framesDone = 0;
-				oldTime = gameTime;
+				m_fps = m_framesDone / (gameTime - m_oldTime);
+				m_framesDone = 0;
+				m_oldTime = gameTime;
 			}
-			framesDone++;
+			m_framesDone++;
 		}
 	}
 }

@@ -51,13 +51,14 @@ private:
 	void CloseWindowCallback(Gwen::Controls::Base* window);
 	void CloseWindow(Gwen::Controls::WindowControl& window);
 
-	std::unique_ptr<Gwen::Renderer::Allegro> renderer;
-	std::unique_ptr<Gwen::Skin::TexturedBase> skin;
-	std::unique_ptr<Gwen::Controls::Canvas> canvas;
-	std::unique_ptr<Gwen::Input::Allegro> gwenInput;
+	// Things GWEN needs to draw a canvas
+	std::unique_ptr<Gwen::Renderer::Allegro> m_renderer;
+	std::unique_ptr<Gwen::Skin::TexturedBase> m_skin;
+	std::unique_ptr<Gwen::Controls::Canvas> m_canvas;
+	std::unique_ptr<Gwen::Input::Allegro> m_gwenInput;
 
-	std::vector<Gwen::Controls::WindowControl*> windows;
+	std::vector<Gwen::Controls::WindowControl*> m_windows;
 
-	InputHandler& iHandler;
+	InputHandler& m_iHandler;
 };
 

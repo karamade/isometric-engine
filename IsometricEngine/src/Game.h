@@ -26,29 +26,33 @@
 #include "GameState.h"
 #include "GameGui.h"
 
-class Game : public Gwen::Event::Handler
+class Game
 {
 public:
 	Game(void);
 	~Game(void);
+
+	/*
+	Main game loop
+	*/
 	void Run(void);
 	
 private:
-	GameState state;
-	InputHandler iHandler;
-	GameGui gui;
+	GameState m_state;
+	InputHandler m_iHandler;
+	GameGui m_gui;
 
-	ALLEGRO_DISPLAY *display;
-	ALLEGRO_EVENT_QUEUE *eventQueue;
-	ALLEGRO_TIMER *timer;
-	ALLEGRO_FONT *font;
+	ALLEGRO_DISPLAY *m_display;
+	ALLEGRO_EVENT_QUEUE *m_eventQueue;
+	ALLEGRO_TIMER *m_timer;
+	ALLEGRO_FONT *m_font;
 
-	Point view;
+	Point m_view;
 
-	double fps;
-	double framesDone;
-	double oldTime;
+	double m_fps;
+	double m_framesDone;
+	double m_oldTime;
 
-	bool redraw;
+	bool m_redraw;
 };
 

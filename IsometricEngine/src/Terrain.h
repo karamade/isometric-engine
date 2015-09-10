@@ -56,14 +56,14 @@ public:
 	void AllegroInit();
 
 	void DrawViewport(const Rect viewWorld, bool drawSelected);
-	inline Tile& GetTile(const Point point) { return map[point.y * pmw + point.x]; };
+	inline Tile& GetTile(const Point point) { return m_map[point.y * m_pmw + point.x]; };
 	inline int GetElevation(const Point point) { return GetTile(point).Elevation; };
 
 	/*
 	Returns of the pixel coordinates of the tile at the given tile coordinates.
 	This calculation incorporates the tile elevation.
 	*/
-	inline Point FineTileToWorld(const Point point) { return FineTileToWorld(point, GetElevation(point)); };
+	Point FineTileToWorld(const Point point) { return FineTileToWorld(point, GetElevation(point)); };
 
 	/*
 	Returns the coordinates of the tile that the given pixel coordinates is over.
@@ -78,9 +78,9 @@ public:
 	/*
 	Returns the world coordinates of the given tile corner point.
 	*/
-	Point FinePointToWorld(const Point point) { return Point((height - point.y) * 32 + point.x * 32, (point.x + point.y) * 16 + 16 - map[point.y * pmw + point.x].NorthPoint * PPUE); };
+	Point FinePointToWorld(const Point point) { return Point((m_height - point.y) * 32 + point.x * 32, (point.x + point.y) * 16 + 16 - m_map[point.y * m_pmw + point.x].NorthPoint * PPUE); };
 
-	inline void Select(const Rect r) { selection = r; }
+	void Select(const Rect r) { m_selection = r; }
 
 	void AdjustSelectedElevation(int change);
 	bool Flatten(const Rect region, int targetElevation);
@@ -89,32 +89,32 @@ public:
 	void RevertElevationChange();
 
 	bool PlaceBuilding(int x, int y, Building& building);
-	bool IsBuilding(int x, int y) { return map[y * pmw + x].Building != NULL; };
-	Building* GetBuilding(int x, int y) { return map[y * pmw + x].Building; };
+	bool IsBuilding(int x, int y) { return m_map[y * m_pmw + x].Building != NULL; };
+	Building* GetBuilding(int x, int y) { return m_map[y * m_pmw + x].Building; };
 
 	
 
 private:
 	// tile width/height
-	int width;
-	int height;
+	int m_width;
+	int m_height;
 
 	// point map width/height
-	int pmw;
-	int pmh;
+	int m_pmw;
+	int m_pmh;
 
-	std::vector<Tile> map;
-	ALLEGRO_BITMAP *tileMap;
-	std::vector<ALLEGRO_BITMAP*> tileBitmaps;
+	std::vector<Tile> m_map;
+	ALLEGRO_BITMAP *m_tileMap;
+	std::vector<ALLEGRO_BITMAP*> m_tileBitmaps;
 
 	// selected x/y ranges
-	Rect selection;
+	Rect m_selection;
 	
 	/*
 	Performs an elevation-ignoring conversion of tile coordinates to absolute pixel coordinates.
 	Used in determining the location of a map tile on the screen.
 	*/
-	inline Point RoughTileToWorld(const Point point) { return Point((height - point.y) * 32 + point.x * 32 - 32, (point.x + point.y) * 16 - 16); };
+	inline Point RoughTileToWorld(const Point point) { return Point((m_height - point.y) * 32 + point.x * 32 - 32, (point.x + point.y) * 16 - 16); };
 
 	/*
 	Returns of the pixel coordinates of the tile at the given tile coordinates.
@@ -126,10 +126,10 @@ private:
 	Performs an elevation-ignoring conveersion of absolute pixel coordinates to tile coordinates.
 	Used in determining which tile the mouse is over.
 	*/
-	inline Point RoughWorldToTile(const Point world) { return Point((world.y - 16 + (world.x - width * 32) / 2) / 32, (world.y - 16 - (world.x - width * 32) / 2) / 32); };
+	inline Point RoughWorldToTile(const Point world) { return Point((world.y - 16 + (world.x - m_width * 32) / 2) / 32, (world.y - 16 - (world.x - m_width * 32) / 2) / 32); };
 
-	inline int RoughWorldToTileY(const Point world) { return (world.y - (world.x - width*32)/2)/32; };
-	inline int RoughWorldToTileX(const Point world) { return (world.y + (world.x - width*32)/2)/32; };
+	inline int RoughWorldToTileY(const Point world) { return (world.y - (world.x - m_width*32)/2)/32; };
+	inline int RoughWorldToTileX(const Point world) { return (world.y + (world.x - m_width*32)/2)/32; };
 
 	void LoadMapFromHeightmap(ALLEGRO_BITMAP *heightMap);
 	void GenerateTilesFromPoints();

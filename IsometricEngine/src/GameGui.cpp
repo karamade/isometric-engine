@@ -1,13 +1,14 @@
 #include "GameGui.h"
 
-GameGui::GameGui(InputHandler& handler) : iHandler(handler)
+GameGui::GameGui(InputHandler& handler)
+	: m_iHandler(handler)
 {
-	renderer = std::make_unique<Gwen::Renderer::Allegro>();
-	skin = std::make_unique<Gwen::Skin::TexturedBase>(renderer.get());
-	canvas = std::make_unique<Gwen::Controls::Canvas>(skin.get());
-	canvas->SetSize(SCREEN_WIDTH, SCREEN_HEIGHT);
-	gwenInput = std::make_unique<Gwen::Input::Allegro>();
-	gwenInput->Initialize(canvas.get());
+	m_renderer = std::make_unique<Gwen::Renderer::Allegro>();
+	m_skin = std::make_unique<Gwen::Skin::TexturedBase>(m_renderer.get());
+	m_canvas = std::make_unique<Gwen::Controls::Canvas>(m_skin.get());
+	m_canvas->SetSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+	m_gwenInput = std::make_unique<Gwen::Input::Allegro>();
+	m_gwenInput->Initialize(m_canvas.get());
 }
 
 
@@ -17,25 +18,28 @@ GameGui::~GameGui()
 
 void GameGui::AllegroInit()
 {
-	skin->Init("images/GUIskin.png");
-	skin->SetDefaultFont(L"arial.ttf");
+	m_skin->Init("images/GUIskin.png");
+	m_skin->SetDefaultFont(L"arial.ttf");
 }
 
 void GameGui::LoadGui(BuildingManager& manager)
 {
-	auto buildingMenu = new Gwen::Controls::TabControl(canvas.get(), "Buildings");
+	// more gross allegro config file stuff
+	// it might be fine to just hardcode this stuff
+
+	auto buildingMenu = new Gwen::Controls::TabControl(m_canvas.get(), "Buildings");
 	buildingMenu->SetBounds(SCREEN_WIDTH - 262 - 150,SCREEN_HEIGHT - 135,262,135);
 
-	auto mapBox = new Gwen::Controls::ImagePanel(canvas.get(), "Map");
+	auto mapBox = new Gwen::Controls::ImagePanel(m_canvas.get(), "Map");
 	mapBox->SetBounds(SCREEN_WIDTH - 150, SCREEN_HEIGHT - 150, 150, 150);
 
 	ALLEGRO_CONFIG *uiConfig = al_load_config_file("ui/building_ui.cfg");
 
 	ALLEGRO_CONFIG_SECTION *iter;
 	// this first section is the 'global' section, we ignore it
-	char const * cfgSection = al_get_first_config_section(uiConfig, &iter);
+	const char * cfgSection = al_get_first_config_section(uiConfig, &iter);
 
-	char const * cfgEntry;
+	const char * cfgEntry;
 	ALLEGRO_CONFIG_ENTRY *eIter;
 
 	// load tab pages from building_ui.cfg
@@ -66,7 +70,7 @@ void GameGui::LoadGui(BuildingManager& manager)
 			but->SetToolTip(cfgEntry);
 			but->SetShouldDrawBackground(false);
 			but->SetBounds((i/2) * 50, 0, 50, 50);
-			but->onPress.Add(&iHandler, &InputHandler::OnBuildingButton);
+			but->onPress.Add(&m_iHandler, &InputHandler::OnBuildingButton);
 			if(i%2)
 				but->SetPos((i/2) * 50, 52);
 
@@ -79,32 +83,34 @@ void GameGui::LoadGui(BuildingManager& manager)
 
 void GameGui::Render()
 {
-	canvas.get()->RenderCanvas();
+	m_canvas.get()->RenderCanvas();
 }
 
 void GameGui::HandleEvent(ALLEGRO_EVENT& ev, GameState& state, Point view)
 {
-	if (gwenInput.get()->ProcessMessage(ev))
+	if (m_gwenInput.get()->ProcessMessage(ev))
 		return;
 
-	GuiRequest req = iHandler.HandleEvent(ev, state, view);
+	GuiRequest req = m_iHandler.HandleEvent(ev, state, view);
 
+	// currently there's only one type of event that when processed affects
+	// the GUI, clicking on a building to open a window
 	switch (req.type)
 	{
 	case GuiRequestType::None:
 		break;
 	case GuiRequestType::OpenBuildingWindow:
-		auto window = req.ptr.building.DisplayGUI(canvas.get());
+		auto window = req.ptr.building.DisplayGUI(m_canvas.get());
 		window->onWindowClosed.Add(this, &GameGui::CloseWindowCallback);
 		window->SetDeleteOnClose(true);
-		windows.push_back(window);
+		OpenWindow(window);
 		break;
 	}
 }
 
 void GameGui::OpenWindow(Gwen::Controls::WindowControl* window)
 {
-	windows.push_back(window);
+	m_windows.push_back(window);
 }
 
 void GameGui::CloseWindowCallback(Gwen::Controls::Base* window)
@@ -114,11 +120,11 @@ void GameGui::CloseWindowCallback(Gwen::Controls::Base* window)
 
 void GameGui::CloseWindow(Gwen::Controls::WindowControl& window)
 {
-	for (auto it = windows.begin(); it != windows.end(); it++)
+	for (auto it = m_windows.begin(); it != m_windows.end(); it++)
 	{
 		if ((*it) == &window)
 		{
-			windows.erase(it);
+			m_windows.erase(it);
 			return;
 		}
 	}

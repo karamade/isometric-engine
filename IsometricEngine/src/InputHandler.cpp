@@ -3,11 +3,11 @@
 
 InputHandler::InputHandler()
 {
-	iState = InputState::None;
-	mouseDown = false;
+	m_iState = InputState::None;
+	m_mouseDown = false;
 
 	for (int i = 0; i < 4; i++)
-		keys[i] = false;
+		m_keys[i] = false;
 }
 
 
@@ -23,16 +23,16 @@ GuiRequest InputHandler::HandleEvent(ALLEGRO_EVENT& event, GameState& state, Poi
 		switch(event.keyboard.keycode)
 		{
 		case ALLEGRO_KEY_UP:
-			keys[KEY_UP] = true;
+			m_keys[KEY_UP] = true;
 			break;
 		case ALLEGRO_KEY_DOWN:
-			keys[KEY_DOWN] = true;
+			m_keys[KEY_DOWN] = true;
 			break;
 		case ALLEGRO_KEY_LEFT:
-			keys[KEY_LEFT] = true;
+			m_keys[KEY_LEFT] = true;
 			break;
 		case ALLEGRO_KEY_RIGHT:
-			keys[KEY_RIGHT] = true;
+			m_keys[KEY_RIGHT] = true;
 			break;
 		case ALLEGRO_KEY_K:
 			state.GetTerrain().AdjustSelectedElevation(1);
@@ -41,7 +41,7 @@ GuiRequest InputHandler::HandleEvent(ALLEGRO_EVENT& event, GameState& state, Poi
 			state.GetTerrain().AdjustSelectedElevation(-1);
 			break;
 		case ALLEGRO_KEY_ESCAPE:
-			iState = InputState::None;
+			m_iState = InputState::None;
 			break;
 		}
 	}
@@ -52,57 +52,57 @@ GuiRequest InputHandler::HandleEvent(ALLEGRO_EVENT& event, GameState& state, Poi
 		switch(event.keyboard.keycode)
 		{
 		case ALLEGRO_KEY_UP:
-			keys[KEY_UP] = false;
+			m_keys[KEY_UP] = false;
 			break;
 		case ALLEGRO_KEY_DOWN:
-			keys[KEY_DOWN] = false;
+			m_keys[KEY_DOWN] = false;
 			break;
 		case ALLEGRO_KEY_LEFT:
-			keys[KEY_LEFT] = false;
+			m_keys[KEY_LEFT] = false;
 			break;
 		case ALLEGRO_KEY_RIGHT:
-			keys[KEY_RIGHT] = false;
+			m_keys[KEY_RIGHT] = false;
 			break;
 		}
 	}
 	else if (event.type == ALLEGRO_EVENT_MOUSE_AXES ||
 			 event.type == ALLEGRO_EVENT_MOUSE_ENTER_DISPLAY)
 	{
-		mouse = state.GetTerrain().FineWorldToTile(Point(event.mouse.x, event.mouse.y) + view);
+		m_mouse = state.GetTerrain().FineWorldToTile(Point(event.mouse.x, event.mouse.y) + view);
 	}
 	else if(event.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN)
 	{
 		// left mouse button has been pressed
 
-		mouseDown = true;
-		mouseDownPoint = mouse;
+		m_mouseDown = true;
+		m_mouseDownPoint = m_mouse;
 
-		if (iState == InputState::PlaceBuilding)
+		if (m_iState == InputState::PlaceBuilding)
 		{
-			iState = InputState::None;
-			mouseDown = false; // 'consume' the mouse down/up event
-			Building& b = state.GetBuildingManager().CreateBuilding(*buildingCmd);
-			if (!state.GetTerrain().PlaceBuilding(mouseDownPoint.x, mouseDownPoint.y, b))
+			m_iState = InputState::None;
+			m_mouseDown = false; // 'consume' the mouse down/up event
+			Building& b = state.GetBuildingManager().CreateBuilding(*m_buildingCmd);
+			if (!state.GetTerrain().PlaceBuilding(m_mouseDownPoint.x, m_mouseDownPoint.y, b))
 				state.GetBuildingManager().DeleteBuilding(b);
 		}
 	}
-	else if(event.type == ALLEGRO_EVENT_MOUSE_BUTTON_UP && mouseDown == true)
+	else if(event.type == ALLEGRO_EVENT_MOUSE_BUTTON_UP && m_mouseDown == true)
 	{
 		// left mouse button has been let up
 
-		mouseDown = false;
-		Point mouseUpPoint = mouse;
+		m_mouseDown = false;
+		Point mouseUpPoint = m_mouse;
 
-		if (state.GetTerrain().IsBuilding(mouseUpPoint.x, mouseUpPoint.y) && mouseDownPoint == mouseUpPoint)
-			return GuiRequest(GuiRequestType::OpenBuildingWindow, GuiRequestPtr(*state.GetTerrain().GetBuilding(mouseUpPoint.x, mouseDownPoint.y)));
+		if (state.GetTerrain().IsBuilding(mouseUpPoint.x, mouseUpPoint.y) && m_mouseDownPoint == mouseUpPoint)
+			return GuiRequest(GuiRequestType::OpenBuildingWindow, GuiRequestPtr(*state.GetTerrain().GetBuilding(mouseUpPoint.x, m_mouseDownPoint.y)));
 
-		else if (iState == InputState::None)
-			state.GetTerrain().Flatten(Rect::Bounding(mouseUpPoint, mouseDownPoint), state.GetTerrain().GetElevation(mouseDownPoint));
+		else if (m_iState == InputState::None)
+			state.GetTerrain().Flatten(Rect::Bounding(mouseUpPoint, m_mouseDownPoint), state.GetTerrain().GetElevation(m_mouseDownPoint));
 
-		else if (iState == InputState::PlacePathway)
+		else if (m_iState == InputState::PlacePathway)
 		{
-			iState = InputState::None;
-			state.GetTerrain().Flatten(Rect::Bounding(mouseUpPoint, mouseDownPoint), state.GetTerrain().GetElevation(mouseDownPoint));
+			m_iState = InputState::None;
+			state.GetTerrain().Flatten(Rect::Bounding(mouseUpPoint, m_mouseDownPoint), state.GetTerrain().GetElevation(m_mouseDownPoint));
 		}
 	}
 
@@ -111,37 +111,37 @@ GuiRequest InputHandler::HandleEvent(ALLEGRO_EVENT& event, GameState& state, Poi
 
 Point InputHandler::DrawTick(GameState& state, Point view)
 {
-	if(keys[KEY_UP])
+	if(m_keys[KEY_UP])
 		view.y -= 10;
-	if(keys[KEY_DOWN])
+	if(m_keys[KEY_DOWN])
 		view.y += 10;
-	if(keys[KEY_LEFT])
+	if(m_keys[KEY_LEFT])
 		view.x -= 10;
-	if(keys[KEY_RIGHT])
+	if(m_keys[KEY_RIGHT])
 		view.x += 10;
 
-	if (iState == InputState::PlaceBuilding)
+	if (m_iState == InputState::PlaceBuilding)
 	{
 		// draw building outline
-		state.GetTerrain().Select(Rect(mouse, mouse + buildingCmd->Size()));
+		state.GetTerrain().Select(Rect(m_mouse, m_mouse + m_buildingCmd->Size()));
 	}
-	else if (iState == InputState::PlacePathway && mouseDown)
+	else if (m_iState == InputState::PlacePathway && m_mouseDown)
 	{
 		// draw path outline
-		if (AbsoluteValue(mouseDownPoint.x - mouse.x) < AbsoluteValue(mouseDownPoint.y - mouse.y))
-			state.GetTerrain().Select(Rect::Bounding(mouseDownPoint, Point(mouseDownPoint.x, mouse.y)));
+		if (AbsoluteValue(m_mouseDownPoint.x - m_mouse.x) < AbsoluteValue(m_mouseDownPoint.y - m_mouse.y))
+			state.GetTerrain().Select(Rect::Bounding(m_mouseDownPoint, Point(m_mouseDownPoint.x, m_mouse.y)));
 		else
-			state.GetTerrain().Select(Rect::Bounding(mouseDownPoint, Point(mouse.x, mouseDownPoint.y)));
+			state.GetTerrain().Select(Rect::Bounding(m_mouseDownPoint, Point(m_mouse.x, m_mouseDownPoint.y)));
 	}
-	else if (iState == InputState::None && mouseDown)
+	else if (m_iState == InputState::None && m_mouseDown)
 	{
 		// draw drag select box
-		state.GetTerrain().Select(Rect::Bounding(mouseDownPoint, mouse));
+		state.GetTerrain().Select(Rect::Bounding(m_mouseDownPoint, m_mouse));
 	}
 	else
 	{
 		// highlight the tile we are over
-		state.GetTerrain().Select(Rect::Bounding(mouse, mouse));
+		state.GetTerrain().Select(Rect::Bounding(m_mouse, m_mouse));
 	}
 
 	return view;
@@ -153,11 +153,11 @@ void InputHandler::OnBuildingButton(Gwen::Controls::Base *c)
 	switch(((CommandButton*)c)->GetType())
 	{
 	case CommandType::Building:
-		iState = InputState::PlaceBuilding;
-		buildingCmd = &(((CommandButton*)c)->GetItem().building);
+		m_iState = InputState::PlaceBuilding;
+		m_buildingCmd = &(((CommandButton*)c)->GetItem().building);
 		break;
 	case CommandType::Pathway:
-		iState = InputState::PlacePathway;
+		m_iState = InputState::PlacePathway;
 		break;
 	}
 }

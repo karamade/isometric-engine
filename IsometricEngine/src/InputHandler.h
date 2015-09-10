@@ -11,6 +11,11 @@
 enum class InputState { None, PlaceBuilding, PlacePathway, FlattenTerrain, AdjustTile };
 enum Keys { KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_K, KEY_J };
 
+// A GUI request is created when a user action not directed at the GUI
+// requires the GUI to react. For example, clicking on a building on the
+// terrain requires a window to open.
+
+// A GUI request has a type that corresponds to a union field.
 enum class GuiRequestType { None, OpenBuildingWindow };
 
 union GuiRequestPtr
@@ -35,11 +40,11 @@ public:
 	InputHandler();
 	~InputHandler();
 	
-	inline bool IsKeyDown(int key) { return keys[key]; }
-	inline Point GetMouse() { return mouse; }
-	inline bool GetMouseDown() { return mouseDown; }
-	inline InputState GetState() { return iState; }
-	inline void SetState(InputState state) { iState = state; }
+	bool IsKeyDown(int key) { return m_keys[key]; }
+	Point GetMouse() { return m_mouse; }
+	bool GetMouseDown() { return m_mouseDown; }
+	InputState GetState() { return m_iState; }
+	void SetState(InputState state) { m_iState = state; }
 
 	/*
 	Handles events not handled by the GameGui, and returns a request for GUI elements to be modified.
@@ -58,13 +63,13 @@ public:
 	void OnBuildingButton(Gwen::Controls::Base *c);
 
 private:
-	bool mouseDown;
-	Point mouseDownPoint;
-	Point mouse;
+	bool m_mouseDown;
+	Point m_mouseDownPoint;
+	Point m_mouse;
 
-	bool keys[6];
+	bool m_keys[6];
 
-	InputState iState;
-	BuildingTemplate* buildingCmd;
+	InputState m_iState;
+	BuildingTemplate* m_buildingCmd;
 };
 
