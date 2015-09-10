@@ -10,6 +10,8 @@ BuildingManager::~BuildingManager()
 {
 }
 
+// Some gross C code for loading allegro config files. Probably should think
+// about moving away from these.
 void BuildingManager::LoadBuildingTemplates()
 {
 	// we get building names from this file
@@ -26,14 +28,15 @@ void BuildingManager::LoadBuildingTemplates()
 		if(uiSection == NULL)
 			break;
 		
-		if(strcmp(uiSection, "Terraform"))
+		if(strcmp(uiSection, "Terraform")) // don't load the Terraform section
 		{
 			ALLEGRO_CONFIG_ENTRY *eter;
 			char const *entry;
 			entry = al_get_first_config_entry(uicfg, uiSection, &eter);
 			do
 			{
-				templates.push_back(std::make_unique<BuildingTemplate>(entry));
+				// load each building name from this section
+				m_templates.push_back(std::make_unique<BuildingTemplate>(entry));
 				entry = al_get_next_config_entry(&eter);
 			} 
 			while(entry != NULL);
@@ -45,12 +48,16 @@ void BuildingManager::LoadBuildingTemplates()
 	// load the actual building templates from this file
 	ALLEGRO_CONFIG *bcfg = al_load_config_file("buildings/buildings.cfg");
 
-	for(auto it = templates.begin(); it != templates.end(); it++)
+	for(auto it = m_templates.begin(); it != m_templates.end(); it++)
 	{
 		char const *name = (*it)->Name.c_str();
+
+		// search for the building attributes in the cfg file by name
 		const char *temp = al_get_config_value(bcfg, name, "image");
+
 		if(!temp)
 			break;
+		// we probably shouldn't be loading images here
 		(*it)->Texture = al_load_bitmap(temp);
 
 		temp = al_get_config_value(bcfg, name, "width");
@@ -70,23 +77,28 @@ void BuildingManager::LoadBuildingTemplates()
 
 BuildingTemplate& BuildingManager::GetTemplateByName(std::string& name)
 {
-	return *std::find_if(templates.begin(), templates.end(), [&name](const std::unique_ptr<BuildingTemplate>& bt) { return bt->Name == name; })->get();
+	return *std::find_if(m_templates.begin(), m_templates.end(),
+		[&name](const std::unique_ptr<BuildingTemplate>& bt)
+			{
+				return bt->Name == name;
+			}
+	)->get();
 }
 
 Building& BuildingManager::CreateBuilding(BuildingTemplate& btemplate)
 {
-	buildings.push_back(std::make_unique<Building>(btemplate));
-	return *buildings.back();
+	m_buildings.push_back(std::make_unique<Building>(btemplate));
+	return *m_buildings.back();
 }
 
 void BuildingManager::DeleteBuilding(Building& building)
 {
-	for (auto it = buildings.begin(); it != buildings.end(); it++)
+	for (auto it = m_buildings.begin(); it != m_buildings.end(); it++)
 	{
 		if ((*it).get() == &building)
 		{
 			(*it).reset();
-			buildings.erase(it);
+			m_buildings.erase(it);
 		}
 	}
 	// TODO: clean up building references

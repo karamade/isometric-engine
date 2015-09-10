@@ -16,6 +16,9 @@
 #include "Resources.h"
 #include "MathHelper.h"
 
+/*
+A template used to create buildings from, these are loaded from cfg files and store basic building attributes
+*/
 struct BuildingTemplate
 {
 	std::string Name;
@@ -28,7 +31,11 @@ struct BuildingTemplate
 		return Point(Width, Height);
 	}
 
-	BuildingTemplate(char const *cname) : Name(std::string(cname)), Texture(nullptr)
+	// accepts a cstring argument because cfg file contents are cstrings
+	// perhaps this should be changed
+	BuildingTemplate(const char *cname)
+		: Name(std::string(cname))
+		, Texture(nullptr)
 	{
 	}
 
@@ -48,6 +55,9 @@ struct BuildingTemplate
 	}
 };
 
+// This is super barebones stuff for displaying building sprites and placeholder windows when buildings get clicked on.
+// Nothing actually happens.
+// Fleshing out buildings is probably the next step.
 class Building
 {
 public:
@@ -55,23 +65,30 @@ public:
 	~Building(void);
 
 	void Tick();
+
+	/*
+	Returns a new window for this building.
+	*/
 	Gwen::Controls::WindowControl* DisplayGUI(Gwen::Controls::Canvas *c);
 
-	inline unsigned char GetWidth() { return width; };
-	inline unsigned char GetHeight() { return height; };
+	unsigned char GetWidth() { return m_width; };
+	unsigned char GetHeight() { return m_height; };
 
-	inline ALLEGRO_BITMAP* GetTexture() { return texture; };
+	ALLEGRO_BITMAP* GetTexture() { return m_texture; };
 
-	inline bool HasInput() { return false; };
+	/*
+	Has resource input, not implemented.
+	*/
+	bool HasInput() { return false; };
 
 private:
-	std::string name;
+	std::string m_name;
 
-	unsigned char width;
-	unsigned char height;
+	unsigned char m_width;
+	unsigned char m_height;
 
-	ALLEGRO_BITMAP* texture;
+	ALLEGRO_BITMAP* m_texture;
 
-	std::vector<Resource> input;
-	std::vector<Resource> output;
+	std::vector<Resource> m_input;
+	std::vector<Resource> m_output;
 };
