@@ -18,9 +18,55 @@ const int TILE_SIZE = 64;
 const int TILE_X = 64;
 const int TILE_Y = 64;
 
+/*
+Represents tiles in the game map
+*/
 struct Tile
 {
-	unsigned char TileType;
+	/*
+	Each tile has a tile type, which represents the physical shape of the tile.
+	This type is derived from the relative elevation of each of its corners.
+	It is used to index the tile map bitmap array.
+	It is also used for tile traversing when converting pixel coords to tile
+	coordinates.
+	*/
+	struct TileType
+	{
+		// NN EE SS WW
+		// 00 00 00 00
+		unsigned char value;
+
+		unsigned char GetNorth() const
+		{
+			return value >> 6;
+		}
+
+		unsigned char GetEast() const
+		{
+			return (value >> 4) & 3;
+		}
+
+		unsigned char GetSouth() const
+		{
+			return (value >> 2) & 3;
+		}
+
+		unsigned char GetWest() const
+		{
+			return value & 3;
+		}
+
+		TileType()
+		{
+			value = 0;
+		}
+
+		TileType(unsigned char north, unsigned char east, unsigned char south, unsigned char west)
+		{
+			value = (north << 6) | (east << 4) | (south << 2) | west;
+		}
+	};
+	TileType Type;
 	unsigned char Elevation;
 	unsigned char NorthPoint;
 	short DryRunElevation;
@@ -35,13 +81,12 @@ struct Tile
 
 	Tile(unsigned char tileType, unsigned char elevation, unsigned char northPoint)
 	{
-		TileType = tileType;
 		Elevation = elevation;
 		NorthPoint = northPoint;
 		DryRunElevation = -1;
 
 		LockedCorner = false;
-		Building = NULL;
+		Building = nullptr;
 		BuildingCorner = false;
 
 		PathCorner = false;
@@ -75,10 +120,15 @@ public:
 	This is like FineWorldToTile, but instead of getting the tile coordinates, it returns the nearest tile corner.
 	*/
 	Point FineWorldToPoint(const Point world);
+
 	/*
 	Returns the world coordinates of the given tile corner point.
 	*/
-	Point FinePointToWorld(const Point point) { return Point((m_height - point.y) * 32 + point.x * 32, (point.x + point.y) * 16 + 16 - m_map[point.y * m_pmw + point.x].NorthPoint * PPUE); };
+	Point FinePointToWorld(const Point point)
+	{
+		return Point((m_height - point.y) * 32 + point.x * 32,
+			(point.x + point.y) * 16 + 16 - GetTile(point).NorthPoint * PPUE);
+	}
 
 	void Select(const Rect r) { m_selection = r; }
 
@@ -89,7 +139,7 @@ public:
 	void RevertElevationChange();
 
 	bool PlaceBuilding(int x, int y, Building& building);
-	bool IsBuilding(int x, int y) { return m_map[y * m_pmw + x].Building != NULL; };
+	bool IsBuilding(int x, int y) { return m_map[y * m_pmw + x].Building != nullptr; };
 	Building* GetBuilding(int x, int y) { return m_map[y * m_pmw + x].Building; };
 
 	
@@ -114,22 +164,41 @@ private:
 	Performs an elevation-ignoring conversion of tile coordinates to absolute pixel coordinates.
 	Used in determining the location of a map tile on the screen.
 	*/
-	inline Point RoughTileToWorld(const Point point) { return Point((m_height - point.y) * 32 + point.x * 32 - 32, (point.x + point.y) * 16 - 16); };
+	Point RoughTileToWorld(const Point point)
+	{
+		return Point((m_height - point.y) * 32 + point.x * 32 - 32, (point.x + point.y) * 16 - 16);
+	}
 
 	/*
 	Returns of the pixel coordinates of the tile at the given tile coordinates.
 	This calculation assumes the tile is at the given elevation.
 	*/
-	inline Point FineTileToWorld(const Point point, int elevation) { Point world = RoughTileToWorld(point); world.y -= elevation * PPUE; return world; };
+	Point FineTileToWorld(const Point point, int elevation)
+	{
+		Point world = RoughTileToWorld(point);
+		world.y -= elevation * PPUE;
+		return world;
+	}
 
 	/*
 	Performs an elevation-ignoring conveersion of absolute pixel coordinates to tile coordinates.
 	Used in determining which tile the mouse is over.
 	*/
-	inline Point RoughWorldToTile(const Point world) { return Point((world.y - 16 + (world.x - m_width * 32) / 2) / 32, (world.y - 16 - (world.x - m_width * 32) / 2) / 32); };
+	Point RoughWorldToTile(const Point world)
+	{
+		return Point((world.y - 16 + (world.x - m_width * 32) / 2) / 32,
+			(world.y - 16 - (world.x - m_width * 32) / 2) / 32);
+	}
 
-	inline int RoughWorldToTileY(const Point world) { return (world.y - (world.x - m_width*32)/2)/32; };
-	inline int RoughWorldToTileX(const Point world) { return (world.y + (world.x - m_width*32)/2)/32; };
+	int RoughWorldToTileY(const Point world)
+	{
+		return (world.y - (world.x - m_width*32)/2)/32;
+	}
+	
+	int RoughWorldToTileX(const Point world)
+	{
+		return (world.y + (world.x - m_width*32)/2)/32;
+	}
 
 	void LoadMapFromHeightmap(ALLEGRO_BITMAP *heightMap);
 	void GenerateTilesFromPoints();
@@ -141,5 +210,5 @@ private:
 
 	The return value is a tile coordinate delta value. (e.g. -1,0)
 	*/
-	Point MouseMapClamp(const Point mmPoint, unsigned int tileType);
+	Point MouseMapClamp(const Point mmPoint, const Tile::TileType tileType);
 };

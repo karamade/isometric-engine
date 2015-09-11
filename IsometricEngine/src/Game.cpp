@@ -127,8 +127,8 @@ void Game::Run(void)
 			ss.clear();
 			ss << mouse_pt.x << ", " << mouse_pt.y << ", "
 				// display tile map coords of the tile the mouse is over, helps debugging
-				<< (int)m_state.GetTerrain().GetTile(mouse_pt).TileType % 16 << ", "
-				<< (int)m_state.GetTerrain().GetTile(mouse_pt).TileType / 16;
+				<< (int)m_state.GetTerrain().GetTile(mouse_pt).Type.value % 16 << ", "
+				<< (int)m_state.GetTerrain().GetTile(mouse_pt).Type.value / 16;
 			auto mouse_tile_coords = ss.str();
 
 			mouse_pt = m_iHandler.GetMouse() + m_view;

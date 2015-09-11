@@ -28,18 +28,26 @@ void Terrain::AllegroInit()
 	al_destroy_bitmap(hm);
 }
 
+// The idea here is to take pixel coords and find which tile that point is over
+// 1. Convert 'world' pixel coords to rough tile position without elevation
+// 2. Convert above tile position back to pixel coords with elevation
+// 3. Calculate relative argument pixel coords to current tile
+// 4. Now we want to traverse through adjacent tiles until we find the one we are over
+// 5. If above value is outside tile boundaries,
+//    - look at adjacent tile based on axis-aligned rectangle
+// 6. Else, call MouseMapClamp to look at the tile shape
+// 7. If MouseMapClamp returns a match, we are done. Otherwise back to 2.
 Point Terrain::FineWorldToTile(const Point world)
 {
 	Point local;
-	int mmWidth = 1024;
-	int count = 0;
 
 	Point tile = RoughWorldToTile(world);
 
-	while (true)
+	while (true) // traverse tiles
 	{
 		if (tile.x >= m_width || tile.y >= m_height)
 		{
+			// Below the map, lock to an edge and return
 			tile.x = Clamp(tile.x, 0, m_width - 1);
 			tile.y = Clamp(tile.y, 0, m_height - 1);
 			return tile;
@@ -47,22 +55,13 @@ Point Terrain::FineWorldToTile(const Point world)
 
 		Point clamped = Point(ClampPositive(tile.x), ClampPositive(tile.y));
 
-		if (count > 100)
-		{
-			// prevent infinite loops, this should never be reached if this function is working correctly though.
-			return tile;
-		}
-		if (count == 90)
-			// breakpoint this line to identify tile walking loops
-			count = count;
-
 		// find the corner of the rough tile we are on
 		local = RoughTileToWorld(tile);
 
 		// translate to the tile's local coordinates
 		local = world - local;
 
-		unsigned char tileType;
+		Tile::TileType tileType;
 		unsigned char elevation;
 		if (tile.x < 0 || tile.y < 0)
 		{
@@ -72,22 +71,32 @@ Point Terrain::FineWorldToTile(const Point world)
 			// we can then proceed to tile walk over those fake tiles until we
 			// either get back inside the map or we match a tile outside
 			// the map, which means the cursor is pointed outside the map.
-			tileType = GetTile(clamped).TileType;
+
+			// To do this, we want to build a new tile from the shape of the
+			// tile on the map edge closest to the argument point.
+			// The two edges of this new tile that are parallel to the map edge
+			// will match the slope and shape of the edge along the map edge
+			// of the original tile. The edges perpendicular to the map edge
+			// will be flat, although possibly at differing elevations.
+
+			// The overall behavior is similar to calculating the distance from
+			// a point to a line in Euclidean geometry, except this is a jagged
+			// line following the map edge.
+			tileType = GetTile(clamped).Type;
 			elevation = GetTile(clamped).Elevation;
 
-			// mask the corners of each tile to determine tile type
-			// NN EE SS WW
-			// 00 00 00 00
-			// mask = (n << 6) | (e << 4) | (s << 2) | w;
-
-			unsigned char top = (tileType >> 6) & 3;
+			unsigned char top = tileType.GetNorth();
 			unsigned char side;
 
+			// Grab whichever tile side would be along the map edge
 			if (tile.x < tile.y)
-				side = tileType & 3;
+				side = tileType.GetWest();
 			else
-				side = (tileType >> 4) & 3;
+				side = tileType.GetEast();
 
+			// The lowest corner might be one of the two we ignored while
+			// constructing the leveled tile, we need to zero out the minimum
+			// elevation.
 			unsigned char min = std::min(top, side);
 			elevation += min;
 			top -= min;
@@ -96,44 +105,51 @@ Point Terrain::FineWorldToTile(const Point world)
 			// clamp side based on if the tile is on the north-west or
 			// north-east side
 			if (tile.x < tile.y)
-				tileType = (top << 6) | (top << 4) | (side << 2) | side;
+				tileType = Tile::TileType(top, top, side, side);
 			else
-				tileType = (top << 6) | (side << 4) | (side << 2) | top;
+				tileType = Tile::TileType(top, side, side, top);
 		}
 		else
 		{
-			tileType = GetTile(tile).TileType;
+			tileType = GetTile(tile).Type;
 			elevation = GetTile(tile).Elevation;
 		}
 
 		// adjust for elevation
 		local.y += elevation * PPUE;
 
-		count++;
-
 		Point modifier;
 
 		if (local.x < 0 || local.x >= TILE_X || local.y < 0 || local.y >= TILE_Y)
 		{
-			// perform bounds checking
+			// the argument coords are outside the pixel bounding box of the tile
+			// split up into the eight bounding rectangles to determine the next
+			// tile to vist
+			// +---+---+---+
+			// | a | b | c |
+			// +---+---+---+
+			// | h | $ | d |
+			// +---+---+---+
+			// | g | f | e |
+			// +---+---+---+
 			if (local.x >= TILE_X && local.y >= TILE_Y)
-				modifier = Point(1, 0);
+				modifier = Point(1, 0); // e
 			else if (local.x < 0 && local.y >= TILE_Y)
-				modifier = Point(0, 1);
+				modifier = Point(0, 1); // g
 			else if (local.x >= TILE_X && local.y < 0)
-				modifier = Point(0, -1);
+				modifier = Point(0, -1); // c
 			else if (local.x < 0 && local.y < 0)
-				modifier = Point(-1, 0);
+				modifier = Point(-1, 0); // a
 			else if (local.x >= TILE_X)
-				modifier = Point(1, -1);
+				modifier = Point(1, -1); // d
 			else if (local.y >= TILE_Y)
-				modifier = Point(1, 1);
+				modifier = Point(1, 1); // f
 			else if (local.x < 0)
-				modifier = Point(-1, 1);
+				modifier = Point(-1, 1); // b
 			else if (local.y < 0)
-				modifier = Point(-1, -1);
+				modifier = Point(-1, -1); // h
 			else
-				modifier = Point(0, 0);
+				modifier = Point(0, 0); // $
 		}
 		else
 		{
@@ -151,22 +167,41 @@ Point Terrain::FineWorldToTile(const Point world)
 	}
 }
 
-Point Terrain::MouseMapClamp(const Point mmPoint, unsigned int tileType)
-{
-	// mask the corners of each tile to determine tile type
-	// NN EE SS WW
-	// 00 00 00 00
-	// mask = (n << 6) | (e << 4) | (s << 2) | w;
-	int topOffset   = (tileType >> 6) & 3;
-	int rightOffset = (tileType >> 4) & 3;
-	int botOffset   = (tileType >> 2) & 3;
-	int leftOffset  = tileType & 3;
+// This is a tile map with ASCII lines showing the extrapolated lines used to
+// find the most appropriate adjacent tile. If the mouse pixel lands in the
+// inside $ region then it rests on the current tile and we are done.
+// The Xs represent the corners derived from the tile type and based on elev
+//   \  |  /
+//    \h|a/
+//     \|/
+//   g  X  b
+//     / \
+//  \ /   \ /
+//   X  $  X
+//  / \   / \
+//     \ /
+//   f  X  c
+//     /|\
+//    /e|d\
+//   /  |  \
 
+Point Terrain::MouseMapClamp(const Point mmPoint, const Tile::TileType tileType)
+{
+	// Offsets represent corner elevations,
+	// TileElevation + CornerOffset = CornerElevation
+	int topOffset   = tileType.GetNorth();
+	int rightOffset = tileType.GetEast();
+	int botOffset   = tileType.GetSouth();
+	int leftOffset  = tileType.GetWest();
+
+	// Convert above offsets to their y-value pixel positions relative to top
+	// left tile corner
 	topOffset =   TILE_Y     / 2 - topOffset   * PPUE;
 	leftOffset =  TILE_Y * 3 / 4 - leftOffset  * PPUE;
 	rightOffset = TILE_Y * 3 / 4 - rightOffset * PPUE;
 	botOffset =   TILE_Y         - botOffset   * PPUE;
 
+	// Pixel positions of each tile corner relative to tile map top-left corner
 	Point top   = Point(TILE_X / 2, topOffset);
 	Point left  = Point(0,          leftOffset);
 	Point right = Point(TILE_X,     rightOffset);
@@ -174,31 +209,34 @@ Point Terrain::MouseMapClamp(const Point mmPoint, unsigned int tileType)
 
 	if (mmPoint.x >= 32)
 	{
+		// right half of tile
 		if (AboveLine(top, top + Point(31, -15), mmPoint) < 0)
-			return Point(-1, -1);
+			return Point(-1, -1); // region 'a'
 		else if (AboveLine(top, right + Point(-1, -1), mmPoint) <= 0)
-			return Point(0, -1);
+			return Point(0, -1); // region 'b'
 		else if (AboveLine(bot, bot + Point(31, 15), mmPoint) > 0)
-			return Point(1, 1);
+			return Point(1, 1); // region 'd'
 		else if (AboveLine(bot, right + Point(-1, 1), mmPoint) >= 0)
-			return Point(1, 0);
+			return Point(1, 0); // region 'c'
 		else
-			return Point(0, 0);
+			return Point(0, 0); // region '$'
 	}
 	else
 	{
-		top += Point(-1, 0);
-		bot += Point(-1, 0);
+		// left half of tile
+		top += Point(-1, 0); // Adjust for off-by-one error caused by even
+		bot += Point(-1, 0); // width tiles. See tile map for image
+
 		if (AboveLine(top + Point(-31, -15), top, mmPoint) < 0)
-			return Point(-1, -1);
+			return Point(-1, -1); // region 'h'
 		else if (AboveLine(left + Point(0, -1), top, mmPoint) <= 0)
-			return Point(-1, 0);
+			return Point(-1, 0); // region 'g'
 		else if (AboveLine(bot + Point(-31, 15), bot, mmPoint) > 0)
-			return Point(1, 1);
+			return Point(1, 1); // region 'e'
 		else if (AboveLine(left + Point(0, 1), bot, mmPoint) >= 0)
-			return Point(0, 1);
+			return Point(0, 1); // region 'f'
 		else
-			return Point(0, 0);
+			return Point(0, 0); // region '$'
 	}
 }
 
@@ -241,7 +279,7 @@ void Terrain::DrawViewport(const Rect viewWorld, bool drawSelected)
 		{
 			Point fine = FineTileToWorld(Point(x, y)) - viewWorld.TopLeft();
 
-			int tt = GetTile(Point(x, y)).TileType;
+			int tt = GetTile(Point(x, y)).Type.value;
 
 			if (m_selection.PointInside(Point(x, y)) && drawSelected)
 				al_draw_tinted_bitmap(m_tileBitmaps[tt], al_map_rgba_f(1, 1, 1, .5), fine.x, fine.y, 0);
@@ -353,7 +391,8 @@ void Terrain::LoadMapFromHeightmap(ALLEGRO_BITMAP *heightMap)
 
 void Terrain::GenerateTilesFromPoints()
 {
-	unsigned int mask, n, s, e, w, min;
+	Tile::TileType mask;
+	unsigned int n, s, e, w, min;
 
 	// determine tile types
 	for(int y = 0; y < m_height; y++)
@@ -373,9 +412,9 @@ void Terrain::GenerateTilesFromPoints()
 			// mask the corners of each tile to determine tile type
 			// NN EE SS WW
 			// 00 00 00 00
-			mask = (n << 6) | (e << 4) | (s << 2) | w;
+			mask = Tile::TileType(n, e, s, w);
 			m_map[y * m_pmw + x].Elevation = min;
-			m_map[y * m_pmw + x].TileType = mask;
+			m_map[y * m_pmw + x].Type = mask;
 		}
 	}
 }
